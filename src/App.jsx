@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Link, NavLink, Route, Routes } from 'react-router-dom';
 import { Toaster, useReveal, useSession } from './ui.jsx';
 import { WHATSAPP } from './supabase.js';
-import Home, { Programa, Sobre, Catalog } from './pages/Home.jsx';
-import Product from './pages/Product.jsx';
-import Auth from './pages/Auth.jsx';
-import Affiliate from './pages/Affiliate.jsx';
-import Admin from './pages/Admin.jsx';
+import Home, { Programa, Sobre, Catalog } from './Pages/Home.jsx';
+import Product from './Pages/Product.jsx';
+import Auth from './Pages/Auth.jsx';
+import Affiliate from './Pages/Affiliate.jsx';
+import Admin from './Pages/Admin.jsx';
 
 function Header() {
   const [open, setOpen] = useState(false);
