@@ -1,0 +1,77 @@
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { sb, kz } from '../supabase.js';
+import { Loading, Modal, toast, useSession } from '../ui.jsx';
+
+const ST = { pendente: 'Pendente', confirmada: 'Confirmada', nao_realizada: 'Não realizada', cancelada: 'Cancelada' };
+const slugify = (t) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+export default function Admin() {
+  const s = useSession(); const nav = useNavigate();
+  const [ok, setOk] = useState(undefined); const [d, setD] = useState(null); const [tab, setTab] = useState('pedidos'); const [flt, setFlt] = useState('');
+  const [conf, setConf] = useState(null); const [pay, setPay] = useState(null); const [form, setForm] = useState(null);
+  const load = useCallback(async () => {
+    const q = (t, sel, o) => { let x = sb.from(t).select(sel); return o ? x.order(o, { ascending: false }) : x; };
+    const [r, c, a, p, ev, cat, pm] = await Promise.all([q('purchase_requests', '*, products(name), affiliates(profiles(full_name))', 'created_at'), q('commissions', 'affiliate_id,amount_kz,paid_kz'),
+      q('affiliates', '*, profiles(full_name,phone), affiliate_bank(*)'), q('products', '*', 'created_at'), q('product_events', 'event_type'), q('categories', '*'), q('audit_logs', '*', 'created_at')]);
+    setD({ r: r.data || [], c: c.data || [], a: a.data || [], p: p.data || [], ev: ev.data || [], cat: cat.data || [], log: (pm.data || []).slice(0, 50) });
+  }, []);
+  useEffect(() => { if (s === null) nav('/entrar'); else if (s) sb.from('admin_users').select('user_id').maybeSingle().then(({ data }) => { setOk(!!data); if (data) load(); }); }, [s]);
+  if (ok === false) return <p className="wrap sec">Acesso negado.</p>;
+  if (!d) return <Loading />;
+  const act = async (fn, args, msg) => { const { error } = await sb.rpc(fn, args); if (error) return toast(error.message, 'err'); toast(msg); setConf(null); setPay(null); load(); };
+  const pend = d.r.filter((x) => x.status === 'pendente').length, conf_ = d.r.filter((x) => x.status === 'confirmada');
+  const owed = d.c.reduce((x, c) => x + c.amount_kz - c.paid_kz, 0), paid = d.c.reduce((x, c) => x + c.paid_kz, 0);
+  const ev = (t) => d.ev.filter((e) => e.event_type === t).length;
+  const wallet = (id) => { const l = d.c.filter((c) => c.affiliate_id === id); return { total: l.reduce((x, c) => x + c.amount_kz, 0), paid: l.reduce((x, c) => x + c.paid_kz, 0) }; };
+  const Stat = ({ l, v }) => <div className="stat"><small>{l}</small><b>{v}</b></div>;
+  const saveProduct = async (e) => {
+    e.preventDefault(); const f = form;
+    const row = { name: f.name, slug: f.slug || slugify(f.name), short_description: f.short_description, description: f.description, category_id: f.category_id || null, type: f.type, price_kz: Math.round(+f.price_kz), commission_bp: Math.round(+f.pct * 100), is_published: f.is_published, is_available: f.is_available, cover_url: f.cover_url || null, is_featured: f.is_featured, published_at: f.is_published ? f.published_at || new Date().toISOString() : null, stock: f.stock === '' ? null : +f.stock };
+    const { error } = f.id ? await sb.from('products').update(row).eq('id', f.id) : await sb.from('products').insert(row);
+    if (error) return toast(error.message, 'err'); toast('Produto guardado.'); setForm(null); load();
+  };
+  const rows = d.r.filter((x) => !flt || x.status === flt);
+  return <section className="wrap sec"><h2>Painel administrativo</h2>
+    <div className="grid4"><Stat l="Vendas confirmadas" v={conf_.length} /><Stat l="Volume de vendas" v={kz(conf_.reduce((x, r) => x + r.price_kz, 0))} /><Stat l="Solicitações" v={d.r.length} /><Stat l="Pendentes" v={pend} />
+      <Stat l="Não realizadas" v={d.r.filter((x) => x.status === 'nao_realizada').length} /><Stat l="Afiliados" v={`${d.a.filter((x) => x.status === 'ativo').length}/${d.a.length}`} /><Stat l="Produtos publicados" v={d.p.filter((x) => x.is_published).length} /><Stat l="Visualizações / cliques" v={`${ev('view')} / ${ev('click')}`} />
+      <Stat l="Encaminhamentos WhatsApp" v={ev('whatsapp')} /><Stat l="Comissões pendentes" v={kz(owed)} /><Stat l="Comissões pagas" v={kz(paid)} /></div>
+    <div className="chips">{[['pedidos', 'Pedidos e Vendas'], ['pagamentos', 'Comissões e Pagamentos'], ['produtos', 'Produtos'], ['afiliados', 'Afiliados'], ['auditoria', 'Auditoria']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+      <button onClick={() => sb.auth.signOut().then(() => nav('/'))}>Sair</button></div>
+
+    {tab === 'pedidos' && <><select value={flt} onChange={(e) => setFlt(e.target.value)}><option value="">Todas</option>{Object.entries(ST).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+      <div className="scroll"><table><thead><tr><th>Ref.</th><th>Produto</th><th>Afiliado</th><th>Preço</th><th>Data</th><th>Estado</th><th>Acção</th></tr></thead><tbody>{rows.map((r) => { const dt = new Date(r.created_at);
+        return <tr key={r.id}><td>{r.public_code}</td><td>{r.products?.name}</td><td>{r.affiliates?.profiles?.full_name || 'Venda directa'}</td><td>{kz(r.price_kz)}</td><td>{dt.toLocaleDateString('pt-AO')} {dt.toLocaleTimeString('pt-AO')}</td><td>{ST[r.status]}</td>
+          <td>{r.status === 'pendente' && <><button className="btn sm" onClick={() => setConf(r)}>Compra realizada</button> <button className="btn sm ghost" onClick={() => window.confirm('Marcar como não realizada?') && act('reject_sale', { p_request_id: r.id }, 'Pedido marcado como não realizado.')}>Não realizada</button></>}</td></tr>; })}</tbody></table></div></>}
+
+    {tab === 'pagamentos' && <div className="scroll"><table><thead><tr><th>Afiliado</th><th>Titular</th><th>Banco</th><th>IBAN</th><th>Pendente</th><th>Pago</th><th></th></tr></thead><tbody>{d.a.map((a) => { const w = wallet(a.id), b = [].concat(a.affiliate_bank || [])[0] || {};
+      return <tr key={a.id}><td>{a.profiles?.full_name}</td><td>{b.holder_name}</td><td>{b.bank}</td><td>{b.iban}</td><td>{kz(w.total - w.paid)}</td><td>{kz(w.paid)}</td>
+        <td>{w.total - w.paid > 0 && <button className="btn sm" onClick={() => setPay({ a, pending: w.total - w.paid, amount: w.total - w.paid, date: new Date().toISOString().slice(0, 10), ref: '', key: crypto.randomUUID() })}>Registar pagamento</button>}</td></tr>; })}</tbody></table></div>}
+
+    {tab === 'produtos' && <><button className="btn" onClick={() => setForm({ name: '', slug: '', short_description: '', description: '', category_id: '', type: 'livro', price_kz: 0, pct: 10, is_published: false, is_available: true, is_featured: false, cover_url: '', stock: '' })}>Novo produto</button>
+      <div className="scroll"><table><thead><tr><th>Nome</th><th>Preço</th><th>Comissão</th><th>Estado</th><th></th></tr></thead><tbody>{d.p.map((p) => <tr key={p.id}><td>{p.name}</td><td>{kz(p.price_kz)}</td><td>{p.commission_bp / 100}%</td><td>{p.is_published ? 'Publicado' : 'Rascunho'}</td>
+        <td><button className="btn sm ghost" onClick={() => setForm({ ...p, pct: p.commission_bp / 100, stock: p.stock ?? '', category_id: p.category_id || '', cover_url: p.cover_url || '' })}>Editar</button></td></tr>)}</tbody></table></div></>}
+
+    {tab === 'afiliados' && <div className="scroll"><table><thead><tr><th>Nome</th><th>Telefone</th><th>Local</th><th>Estado</th><th></th></tr></thead><tbody>{d.a.map((a) => <tr key={a.id}><td>{a.profiles?.full_name}</td><td>{a.profiles?.phone}</td><td>{a.municipality}, {a.province}</td><td>{a.status}</td>
+      <td><button className="btn sm ghost" onClick={() => act('set_affiliate_status', { p_affiliate_id: a.id, p_status: a.status === 'ativo' ? 'suspenso' : 'ativo' }, 'Estado actualizado.')}>{a.status === 'ativo' ? 'Suspender' : 'Reactivar'}</button></td></tr>)}</tbody></table></div>}
+
+    {tab === 'auditoria' && <div className="scroll"><table><thead><tr><th>Data</th><th>Acção</th><th>Detalhes</th></tr></thead><tbody>{d.log.map((l) => <tr key={l.id}><td>{new Date(l.created_at).toLocaleString('pt-AO')}</td><td>{l.action}</td><td className="small">{JSON.stringify(l.details)}</td></tr>)}</tbody></table></div>}
+
+    {conf && <Modal title="Confirmar venda" onClose={() => setConf(null)}><p><b>{conf.products?.name}</b> · {kz(conf.price_kz)}<br />Afiliado: {conf.affiliates?.profiles?.full_name || 'Venda directa'}<br />Comissão: {conf.affiliates ? kz(Math.floor(conf.price_kz * conf.commission_bp / 10000)) : '—'} ({conf.commission_bp / 100}%)</p>
+      <div className="row"><button className="btn ghost" onClick={() => setConf(null)}>Cancelar</button><button className="btn" onClick={() => act('confirm_sale', { p_request_id: conf.id }, 'Venda confirmada.')}>Confirmar</button></div></Modal>}
+    {pay && <Modal title="Registar pagamento" onClose={() => setPay(null)}><p>{pay.a.profiles?.full_name} · pendente: <b>{kz(pay.pending)}</b></p>
+      <div className="form"><label>Valor a pagar (Kz)<input type="number" min="1" max={pay.pending} value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} /></label>
+        <label>Data<input type="date" value={pay.date} onChange={(e) => setPay({ ...pay, date: e.target.value })} /></label>
+        <label>Referência / comprovativo<input value={pay.ref} onChange={(e) => setPay({ ...pay, ref: e.target.value })} /></label></div>
+      <div className="row"><button className="btn ghost" onClick={() => setPay(null)}>Cancelar</button><button className="btn" onClick={() => act('register_payment', { p_affiliate_id: pay.a.id, p_amount_kz: Math.round(+pay.amount), p_paid_on: pay.date, p_reference: pay.ref, p_key: pay.key }, 'Pagamento registado.')}>Confirmar pagamento</button></div></Modal>}
+    {form && <Modal title={form.id ? 'Editar produto' : 'Novo produto'} onClose={() => setForm(null)}><form className="form" onSubmit={saveProduct}>
+      {[['name', 'Nome'], ['short_description', 'Descrição curta'], ['cover_url', 'URL da imagem de capa']].map(([k, l]) => <label key={k}>{l}<input required={k === 'name'} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} /></label>)}
+      <label>Descrição completa<textarea rows="4" value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
+      <label>Categoria<select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}><option value="">—</option>{d.cat.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+      <label>Tipo<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{['livro', 'curso', 'documento', 'planilha', 'fisico', 'outro'].map((t) => <option key={t}>{t}</option>)}</select></label>
+      <label>Preço (Kz)<input type="number" min="0" required value={form.price_kz} onChange={(e) => setForm({ ...form, price_kz: e.target.value })} /></label>
+      <label>Comissão (%)<input type="number" min="0" max="100" step="0.01" required value={form.pct} onChange={(e) => setForm({ ...form, pct: e.target.value })} /></label>
+      <label>Stock (físicos)<input type="number" min="0" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></label>
+      {[['is_published', 'Publicado'], ['is_available', 'Disponível'], ['is_featured', 'Em destaque']].map(([k, l]) => <label className="chk" key={k}><input type="checkbox" checked={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.checked })} /> {l}</label>)}
+      <button className="btn">Guardar</button></form></Modal>}
+  </section>;
+}
