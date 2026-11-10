@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, NavLink, Route, Routes } from 'react-router-dom';
+import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster, useReveal, useSession } from './ui.jsx';
 import { WHATSAPP, sb } from './supabase.js';
 import Home, { Programa, Sobre, Catalog } from './Pages/Home.jsx';
@@ -32,9 +32,12 @@ const Footer = () => <footer className="ftr"><div className="wrap grid3">
   </div><p className="center muted small">© {new Date().getFullYear()} Loanda Afiliados · Todos os direitos reservados</p></footer>;
 const Legal = () => <section className="wrap sec"><h2>Política de privacidade</h2><p>Guardamos os dados fornecidos no registo e na navegação por links de afiliados (identificador de visitante e referência, por até 30 dias) apenas para atribuir vendas e calcular comissões. Dados bancários são visíveis apenas ao próprio afiliado e ao administrador.</p><h2>Termos e condições</h2><p>Comissões só são devidas por vendas confirmadas pelo administrador. Contas podem ser suspensas por actividade abusiva, sem perda do histórico financeiro. <b>Texto-base: rever com assessoria jurídica antes de publicar.</b></p></section>;
 
+const PanelBar = ({ admin }) => <header className="hdr"><div className="wrap bar"><span className="logo">LOANDA <b>AFILIADOS</b> · {admin ? 'ADMIN' : 'MINHA CONTA'}</span><Link to="/" className="small">Ver site</Link></div></header>;
 export default function App() {
   useReveal();
-  return <><Header /><main>
+  const { pathname } = useLocation();
+  const panel = pathname.startsWith('/admin') || pathname.startsWith('/conta');
+  return <>{panel ? <PanelBar admin={pathname.startsWith('/admin')} /> : <Header />}<main>
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/produtos" element={<section className="wrap sec"><Catalog /></section>} />
@@ -46,5 +49,5 @@ export default function App() {
       <Route path="/admin" element={<Admin />} />
       <Route path="/legal" element={<Legal />} />
       <Route path="*" element={<p className="wrap sec">Página não encontrada.</p>} />
-    </Routes></main><Footer /><Toaster /></>;
+    </Routes></main>{!panel && <Footer />}<Toaster /></>;
 }
