@@ -33,3 +33,5 @@ input,textarea{background:var(--ink);border:1px solid var(--line);color:var(--iv
 .btn.buy:disabled{animation:none;box-shadow:none;filter:grayscale(1)}
 @keyframes glow{0%,100%{box-shadow:0 6px 18px rgba(196,154,74,.35)}50%{box-shadow:0 6px 26px rgba(196,154,74,.7)}}
 @media(prefers-reduced-motion:reduce){.btn.buy{animation:none}}
+.aviso{background:var(--gold);color:var(--ink);text-align:center;padding:8px 14px;font-size:.9rem;font-weight:600}
+details summary{cursor:pointer}.band ul,.sec ul{padding-left:20px}
