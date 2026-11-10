@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Route, Routes } from 'react-router-dom';
 import { Toaster, useReveal, useSession } from './ui.jsx';
 import { WHATSAPP, sb } from './supabase.js';
@@ -11,6 +11,8 @@ import Admin from './Pages/Admin.jsx';
 function Header() {
   const [open, setOpen] = useState(false);
   const s = useSession();
+  const [adm, setAdm] = useState(false);
+  useEffect(() => { if (!s) return setAdm(false); sb.from('admin_users').select('user_id').maybeSingle().then(({ data }) => setAdm(!!data)); }, [s]);
   const L = ({ to, children }) => <Link to={to} onClick={() => setOpen(false)}>{children}</Link>;
   return <header className="hdr"><div className="wrap bar">
     <Link to="/" className="logo">LOANDA <b>AFILIADOS</b></Link>
@@ -19,7 +21,7 @@ function Header() {
       <L to="/">Início</L><L to="/produtos?cat=livros">Livros</L><L to="/produtos?cat=cursos">Cursos</L>
       <L to="/produtos?cat=documentos">Documentos e Modelos</L><L to="/produtos">Produtos</L>
       <L to="/afiliados">Programa de Afiliados</L><L to="/sobre">Sobre nós</L>
-      <L to={s ? '/conta' : '/entrar'}>{s ? 'Minha conta' : 'Entrar'}</L>
+      <L to={adm ? '/admin' : s ? '/conta' : '/entrar'}>{adm ? 'Painel Admin' : s ? 'Minha conta' : 'Entrar'}</L>
       {s && <a href="#/" onClick={(e) => { e.preventDefault(); setOpen(false); sb.auth.signOut().then(() => { location.hash = '#/'; }); }}>Sair</a>}
     </nav></div></header>;
 }
