@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, Route, Routes } from 'react-router-dom';
 import { Toaster, useReveal, useSession } from './ui.jsx';
-import { WHATSAPP } from './supabase.js';
+import { WHATSAPP, sb } from './supabase.js';
 import Home, { Programa, Sobre, Catalog } from './Pages/Home.jsx';
 import Product from './Pages/Product.jsx';
 import Auth from './Pages/Auth.jsx';
@@ -20,6 +20,7 @@ function Header() {
       <L to="/produtos?cat=documentos">Documentos e Modelos</L><L to="/produtos">Produtos</L>
       <L to="/afiliados">Programa de Afiliados</L><L to="/sobre">Sobre nós</L>
       <L to={s ? '/conta' : '/entrar'}>{s ? 'Minha conta' : 'Entrar'}</L>
+      {s && <a href="#/" onClick={(e) => { e.preventDefault(); setOpen(false); sb.auth.signOut().then(() => { location.hash = '#/'; }); }}>Sair</a>}
     </nav></div></header>;
 }
 const Footer = () => <footer className="ftr"><div className="wrap grid3">
