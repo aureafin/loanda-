@@ -16,13 +16,15 @@ export function useSession() {
   return s;
 }
 export function useReveal() {
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
   useEffect(() => {
-    const els = [...document.querySelectorAll('.reveal:not(.in)')];
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) { els.forEach((e) => e.classList.add('in')); return; }
-    const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.12 });
-    els.forEach((e) => io.observe(e));
-    return () => io.disconnect();
-  });
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window);
+    const io = reduce ? null : new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.12 });
+    const scan = () => document.querySelectorAll('.reveal:not(.in)').forEach((el) => (io ? io.observe(el) : el.classList.add('in')));
+    scan();
+    const mo = new MutationObserver(scan); // apanha elementos que chegam depois (ex.: produtos carregados do Supabase)
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => { io?.disconnect(); mo.disconnect(); };
+  }, [pathname]);
 }
 export const Loading = () => <p className="muted center">A carregar…</p>;
