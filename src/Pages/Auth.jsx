@@ -8,7 +8,7 @@ export default function Auth() {
   const [reg, setReg] = useState(sp.get('modo') === 'registo'); const [busy, setBusy] = useState(false);
   const [f, setF] = useState({ full_name: '', phone: '', email: '', password: '', password2: '', province: '', municipality: '', holder: '', bank: '', iban: '', terms: false });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
-  useEffect(() => { sb.auth.getSession().then(({ data }) => data.session && nav('/conta')); }, []);
+  useEffect(() => { sb.auth.getSession().then(async ({ data }) => { if (!data.session) return; const { data: adm } = await sb.from('admin_users').select('user_id').maybeSingle(); nav(adm ? '/admin' : '/conta'); }); }, []);
   const submit = async (e) => {
     e.preventDefault();
     if (reg) {
