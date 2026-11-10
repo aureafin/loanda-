@@ -8,7 +8,7 @@ const ST = { pendente: 'Pendente', confirmada: 'Confirmada', nao_realizada: 'Nã
 const slugify = (t) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 export default function Admin() {
   const s = useSession(); const nav = useNavigate();
-  const [ok, setOk] = useState(undefined); const [d, setD] = useState(null); const [tab, setTab] = useState('pedidos'); const [flt, setFlt] = useState('');
+  const [ok, setOk] = useState(undefined); const [d, setD] = useState(null); const [tab, setTab] = useState('produtos'); const [flt, setFlt] = useState('');
   const [conf, setConf] = useState(null); const [pay, setPay] = useState(null); const [form, setForm] = useState(null);
   const load = useCallback(async () => {
     const q = (t, sel, o) => { let x = sb.from(t).select(sel); return o ? x.order(o, { ascending: false }) : x; };
@@ -27,11 +27,11 @@ export default function Admin() {
   const Stat = ({ l, v }) => <div className="stat"><small>{l}</small><b>{v}</b></div>;
   const rows = d.r.filter((x) => !flt || x.status === flt);
   return <section className="wrap sec"><h2>Painel administrativo</h2>
+    <div className="chips">{[['pedidos', 'Pedidos e Vendas'], ['pagamentos', 'Comissões e Pagamentos'], ['produtos', 'Produtos'], ['afiliados', 'Afiliados'], ['auditoria', 'Auditoria']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+      <button onClick={() => sb.auth.signOut().then(() => nav('/'))}>Sair</button></div>
     <div className="grid4"><Stat l="Vendas confirmadas" v={conf_.length} /><Stat l="Volume de vendas" v={kz(conf_.reduce((x, r) => x + r.price_kz, 0))} /><Stat l="Solicitações" v={d.r.length} /><Stat l="Pendentes" v={pend} />
       <Stat l="Não realizadas" v={d.r.filter((x) => x.status === 'nao_realizada').length} /><Stat l="Afiliados" v={`${d.a.filter((x) => x.status === 'ativo').length}/${d.a.length}`} /><Stat l="Produtos publicados" v={d.p.filter((x) => x.is_published).length} /><Stat l="Visualizações / cliques" v={`${ev('view')} / ${ev('click')}`} />
       <Stat l="Encaminhamentos WhatsApp" v={ev('whatsapp')} /><Stat l="Comissões pendentes" v={kz(owed)} /><Stat l="Comissões pagas" v={kz(paid)} /></div>
-    <div className="chips">{[['pedidos', 'Pedidos e Vendas'], ['pagamentos', 'Comissões e Pagamentos'], ['produtos', 'Produtos'], ['afiliados', 'Afiliados'], ['auditoria', 'Auditoria']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
-      <button onClick={() => sb.auth.signOut().then(() => nav('/'))}>Sair</button></div>
 
     {tab === 'pedidos' && <><select value={flt} onChange={(e) => setFlt(e.target.value)}><option value="">Todas</option>{Object.entries(ST).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
       <div className="scroll"><table><thead><tr><th>Ref.</th><th>Produto</th><th>Afiliado</th><th>Preço</th><th>Data</th><th>Estado</th><th>Acção</th></tr></thead><tbody>{rows.map((r) => { const dt = new Date(r.created_at);
