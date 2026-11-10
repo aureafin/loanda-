@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { sb, kz } from '../supabase.js';
 import { Loading } from '../ui.jsx';
+import BuyButton from '../BuyButton.jsx';
 
 export function Catalog() {
   const [sp, setSp] = useSearchParams();
@@ -22,7 +23,7 @@ export function Catalog() {
         <div className="cover" style={p.cover_url ? { backgroundImage: `url(${p.cover_url})` } : null}>{!p.cover_url && '📘'}</div>
         <div className="body"><span className="tag">{p.categories?.name || 'Produto'}</span><h3>{p.name}</h3><p className="muted">{p.short_description}</p>
           <div className="price">{kz(p.price_kz)} <small>{p.is_available ? 'Disponível' : 'Indisponível'}</small></div>
-          <div className="row"><Link className="btn ghost" to={`/produto/${p.slug}`}>Ver detalhes</Link><Link className="btn" to={`/produto/${p.slug}`}>Comprar</Link></div></div></article>)}</div>}
+          <div className="row"><BuyButton product={p} /><Link className="btn ghost block" to={`/produto/${p.slug}`}>Ver detalhes</Link></div></div></article>)}</div>}
   </div>;
 }
 export const Programa = () => <section className="wrap sec"><h2 className="reveal">Programa de Afiliados</h2>
