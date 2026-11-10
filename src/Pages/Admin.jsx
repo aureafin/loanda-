@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sb, kz } from '../supabase.js';
 import ProductForm from './ProductForm.jsx';
+import ContentAdmin from './ContentAdmin.jsx';
 import { Loading, Modal, toast, useSession } from '../ui.jsx';
 
 const ST = { pendente: 'Pendente', confirmada: 'Confirmada', nao_realizada: 'Não realizada', cancelada: 'Cancelada' };
@@ -27,7 +28,7 @@ export default function Admin() {
   const Stat = ({ l, v }) => <div className="stat"><small>{l}</small><b>{v}</b></div>;
   const rows = d.r.filter((x) => !flt || x.status === flt);
   return <section className="wrap sec"><h2>Painel administrativo</h2>
-    <div className="chips">{[['pedidos', 'Pedidos e Vendas'], ['pagamentos', 'Comissões e Pagamentos'], ['produtos', 'Produtos'], ['afiliados', 'Afiliados'], ['auditoria', 'Auditoria']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+    <div className="chips">{[['pedidos', 'Pedidos e Vendas'], ['pagamentos', 'Comissões e Pagamentos'], ['produtos', 'Produtos'], ['afiliados', 'Afiliados'], ['auditoria', 'Auditoria'], ['conteudo', 'Conteúdo do site']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       <button onClick={() => sb.auth.signOut().then(() => nav('/'))}>Sair</button></div>
     <div className="grid4"><Stat l="Vendas confirmadas" v={conf_.length} /><Stat l="Volume de vendas" v={kz(conf_.reduce((x, r) => x + r.price_kz, 0))} /><Stat l="Solicitações" v={d.r.length} /><Stat l="Pendentes" v={pend} />
       <Stat l="Não realizadas" v={d.r.filter((x) => x.status === 'nao_realizada').length} /><Stat l="Afiliados" v={`${d.a.filter((x) => x.status === 'ativo').length}/${d.a.length}`} /><Stat l="Produtos publicados" v={d.p.filter((x) => x.is_published).length} /><Stat l="Visualizações / cliques" v={`${ev('view')} / ${ev('click')}`} />
@@ -50,6 +51,8 @@ export default function Admin() {
       <td><button className="btn sm ghost" onClick={() => act('set_affiliate_status', { p_affiliate_id: a.id, p_status: a.status === 'ativo' ? 'suspenso' : 'ativo' }, 'Estado actualizado.')}>{a.status === 'ativo' ? 'Suspender' : 'Reactivar'}</button></td></tr>)}</tbody></table></div>}
 
     {tab === 'auditoria' && <div className="scroll"><table><thead><tr><th>Data</th><th>Acção</th><th>Detalhes</th></tr></thead><tbody>{d.log.map((l) => <tr key={l.id}><td>{new Date(l.created_at).toLocaleString('pt-AO')}</td><td>{l.action}</td><td className="small">{JSON.stringify(l.details)}</td></tr>)}</tbody></table></div>}
+
+    {tab === 'conteudo' && <ContentAdmin />}
 
     {conf && <Modal title="Confirmar venda" onClose={() => setConf(null)}><p><b>{conf.products?.name}</b> · {kz(conf.price_kz)}<br />Afiliado: {conf.affiliates?.profiles?.full_name || 'Venda directa'}<br />Comissão: {conf.affiliates ? kz(Math.floor(conf.price_kz * conf.commission_bp / 10000)) : '—'} ({conf.commission_bp / 100}%)</p>
       <div className="row"><button className="btn ghost" onClick={() => setConf(null)}>Cancelar</button><button className="btn" onClick={() => act('confirm_sale', { p_request_id: conf.id }, 'Venda confirmada.')}>Confirmar</button></div></Modal>}
