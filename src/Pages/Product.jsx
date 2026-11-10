@@ -29,6 +29,8 @@ export default function Product() {
     <div className="cover big" style={p.cover_url ? { backgroundImage: `url(${p.cover_url})` } : null}>{!p.cover_url && '📘'}</div>
     <div><span className="tag">{p.categories?.name}</span><h1>{p.name}</h1><p className="price">{kz(p.price_kz)}</p>
       <p>{p.short_description}</p><p className="muted" style={{ whiteSpace: 'pre-line' }}>{p.description}</p>
+      {(p.gallery || []).length > 0 && <div className="row">{p.gallery.map((u) => <img key={u} src={u} alt="" style={{ width: 90, height: 90, objectFit: 'cover', borderRadius: 8 }} />)}</div>}
+      {p.course_content && <><h3>Conteúdo do curso</h3><p className="muted" style={{ whiteSpace: 'pre-line' }}>{p.course_content}</p></>}
       <button className="btn" disabled={!p.is_available} onClick={() => setAsk(true)}>{p.is_available ? 'Comprar' : 'Indisponível'}</button></div>
     {ask && <Modal title="Confirmar compra" onClose={() => setAsk(false)}>
       <p>Vamos registar o seu pedido de <b>{p.name}</b> ({kz(p.price_kz)}) e abrir o WhatsApp para concluir a compra. O pedido só é considerado venda depois de confirmado.</p>

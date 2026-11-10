@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sb, kz } from '../supabase.js';
+import ProductForm from './ProductForm.jsx';
 import { Loading, Modal, toast, useSession } from '../ui.jsx';
 
 const ST = { pendente: 'Pendente', confirmada: 'Confirmada', nao_realizada: 'Não realizada', cancelada: 'Cancelada' };
@@ -24,12 +25,6 @@ export default function Admin() {
   const ev = (t) => d.ev.filter((e) => e.event_type === t).length;
   const wallet = (id) => { const l = d.c.filter((c) => c.affiliate_id === id); return { total: l.reduce((x, c) => x + c.amount_kz, 0), paid: l.reduce((x, c) => x + c.paid_kz, 0) }; };
   const Stat = ({ l, v }) => <div className="stat"><small>{l}</small><b>{v}</b></div>;
-  const saveProduct = async (e) => {
-    e.preventDefault(); const f = form;
-    const row = { name: f.name, slug: f.slug || slugify(f.name), short_description: f.short_description, description: f.description, category_id: f.category_id || null, type: f.type, price_kz: Math.round(+f.price_kz), commission_bp: Math.round(+f.pct * 100), is_published: f.is_published, is_available: f.is_available, cover_url: f.cover_url || null, is_featured: f.is_featured, published_at: f.is_published ? f.published_at || new Date().toISOString() : null, stock: f.stock === '' ? null : +f.stock };
-    const { error } = f.id ? await sb.from('products').update(row).eq('id', f.id) : await sb.from('products').insert(row);
-    if (error) return toast(error.message, 'err'); toast('Produto guardado.'); setForm(null); load();
-  };
   const rows = d.r.filter((x) => !flt || x.status === flt);
   return <section className="wrap sec"><h2>Painel administrativo</h2>
     <div className="grid4"><Stat l="Vendas confirmadas" v={conf_.length} /><Stat l="Volume de vendas" v={kz(conf_.reduce((x, r) => x + r.price_kz, 0))} /><Stat l="Solicitações" v={d.r.length} /><Stat l="Pendentes" v={pend} />
@@ -63,15 +58,6 @@ export default function Admin() {
         <label>Data<input type="date" value={pay.date} onChange={(e) => setPay({ ...pay, date: e.target.value })} /></label>
         <label>Referência / comprovativo<input value={pay.ref} onChange={(e) => setPay({ ...pay, ref: e.target.value })} /></label></div>
       <div className="row"><button className="btn ghost" onClick={() => setPay(null)}>Cancelar</button><button className="btn" onClick={() => act('register_payment', { p_affiliate_id: pay.a.id, p_amount_kz: Math.round(+pay.amount), p_paid_on: pay.date, p_reference: pay.ref, p_key: pay.key }, 'Pagamento registado.')}>Confirmar pagamento</button></div></Modal>}
-    {form && <Modal title={form.id ? 'Editar produto' : 'Novo produto'} onClose={() => setForm(null)}><form className="form" onSubmit={saveProduct}>
-      {[['name', 'Nome'], ['short_description', 'Descrição curta'], ['cover_url', 'URL da imagem de capa']].map(([k, l]) => <label key={k}>{l}<input required={k === 'name'} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} /></label>)}
-      <label>Descrição completa<textarea rows="4" value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
-      <label>Categoria<select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}><option value="">—</option>{d.cat.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-      <label>Tipo<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{['livro', 'curso', 'documento', 'planilha', 'fisico', 'outro'].map((t) => <option key={t}>{t}</option>)}</select></label>
-      <label>Preço (Kz)<input type="number" min="0" required value={form.price_kz} onChange={(e) => setForm({ ...form, price_kz: e.target.value })} /></label>
-      <label>Comissão (%)<input type="number" min="0" max="100" step="0.01" required value={form.pct} onChange={(e) => setForm({ ...form, pct: e.target.value })} /></label>
-      <label>Stock (físicos)<input type="number" min="0" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></label>
-      {[['is_published', 'Publicado'], ['is_available', 'Disponível'], ['is_featured', 'Em destaque']].map(([k, l]) => <label className="chk" key={k}><input type="checkbox" checked={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.checked })} /> {l}</label>)}
-      <button className="btn">Guardar</button></form></Modal>}
+    {form && <ProductForm form={form} setForm={setForm} cats={d.cat} onClose={() => setForm(null)} onSaved={load} />}
   </section>;
 }
