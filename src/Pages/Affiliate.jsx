@@ -6,16 +6,18 @@ import { Loading, toast, useSession } from '../ui.jsx';
 const link = (slug, code) => `${location.origin}${location.pathname}#/produto/${slug}?ref=${code}`;
 export default function Affiliate() {
   const s = useSession(); const nav = useNavigate();
-  const [d, setD] = useState(null); const [tab, setTab] = useState('resumo'); const [days, setDays] = useState(30);
+  const [d, setD] = useState(null); const [fail, setFail] = useState(false); const [tab, setTab] = useState('resumo'); const [days, setDays] = useState(30);
   const load = useCallback(async () => {
     const u = s.user;
+    const { data: adm } = await sb.from('admin_users').select('user_id').maybeSingle();
+    if (adm) return nav('/admin');
     let { data: aff } = await sb.from('affiliates').select('*').maybeSingle();
     if (!aff) { // primeiro login: completa o registo a partir dos dados do formulário
       const m = u.user_metadata || {};
       const e1 = (await sb.from('profiles').upsert({ id: u.id, full_name: m.full_name, phone: m.phone })).error;
       const e2 = !e1 && (await sb.from('affiliates').insert({ id: u.id, province: m.province, municipality: m.municipality })).error;
       const e3 = !e1 && !e2 && (await sb.from('affiliate_bank').insert({ affiliate_id: u.id, holder_name: m.holder, bank: m.bank, iban: m.iban })).error;
-      if (e1 || e2 || e3) return toast('Não foi possível concluir o registo do afiliado.', 'err');
+      if (e1 || e2 || e3) { setFail(true); return toast('Não foi possível concluir o registo do afiliado.', 'err'); }
       await sb.auth.updateUser({ data: { holder: null, bank: null, iban: null } });
       ({ data: aff } = await sb.from('affiliates').select('*').maybeSingle());
     }
@@ -34,6 +36,7 @@ export default function Affiliate() {
     if (!s) return; const ch = sb.channel('nt').on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${s.user.id}` }, () => load()).subscribe();
     return () => { sb.removeChannel(ch); };
   }, [s]);
+  if (fail) return <section className="wrap sec narrow"><p className="err">Esta conta não tem registo de afiliado completo.</p><button className="btn" onClick={() => sb.auth.signOut().then(() => nav('/entrar'))}>Sair e entrar com outra conta</button></section>;
   if (!d) return <Loading />;
   const since = Date.now() - days * 864e5, ev = d.ev.filter((e) => new Date(e.created_at) >= since);
   const n = (t) => ev.filter((e) => e.event_type === t).length;
