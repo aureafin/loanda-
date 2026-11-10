@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { sb } from '../supabase.js';
-import { toast } from '../ui.jsx';
+import { Modal, toast } from '../ui.jsx';
 
 export default function Auth() {
   const [sp] = useSearchParams(); const nav = useNavigate();
-  const [reg, setReg] = useState(sp.get('modo') === 'registo'); const [busy, setBusy] = useState(false);
+  const [reg, setReg] = useState(sp.get('modo') === 'registo'); const [busy, setBusy] = useState(false); const [done, setDone] = useState(false);
   const [f, setF] = useState({ full_name: '', phone: '', email: '', password: '', password2: '', province: '', municipality: '', holder: '', bank: '', iban: '', terms: false });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   useEffect(() => { sb.auth.getSession().then(async ({ data }) => { if (!data.session) return; const { data: adm } = await sb.from('admin_users').select('user_id').maybeSingle(); nav(adm ? '/admin' : '/conta'); }); }, []);
@@ -23,8 +23,7 @@ export default function Auth() {
       const { data, error } = await sb.auth.signUp({ email, password, options: { data: meta } });
       setBusy(false);
       if (error) return toast(error.message, 'err');
-      toast(data.session ? 'Conta criada.' : 'Conta criada. Confirme o seu e-mail e depois entre.');
-      if (data.session) nav('/conta'); else setReg(false);
+      if (data.session) { toast('Conta criada com sucesso!'); nav('/conta'); } else setDone(true);
     } else {
       const { error } = await sb.auth.signInWithPassword({ email: f.email, password: f.password });
       setBusy(false);
@@ -49,5 +48,10 @@ export default function Auth() {
       <button className="btn" disabled={busy}>{busy ? 'Aguarde…' : reg ? 'Criar conta' : 'Entrar'}</button>
       {!reg && <button type="button" className="link" onClick={recover}>Esqueci a palavra-passe</button>}
       <button type="button" className="link" onClick={() => setReg(!reg)}>{reg ? 'Já tenho conta' : 'Quero ser afiliado'}</button>
-    </form></section>;
+    </form>
+    {done && <Modal title="Conta criada com sucesso ✅" onClose={() => { setDone(false); setReg(false); }}>
+      <p>Enviámos um e-mail de confirmação para <b>{f.email}</b>.</p>
+      <p>Abra o e-mail, toque no link de confirmação e depois volte aqui para <b>entrar</b>. Se não o encontrar, veja também a pasta de spam.</p>
+      <button className="btn buy block" onClick={() => { setDone(false); setReg(false); }}>Entendi</button></Modal>}
+  </section>;
 }
