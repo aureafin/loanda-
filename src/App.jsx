@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { Toaster, useReveal, useSession } from './ui.jsx';
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Loading, Toaster, useReveal, useSession } from './ui.jsx';
 import { WHATSAPP, sb } from './supabase.js';
 import { useContent } from './content.js';
 import Home, { Programa, Sobre, Catalog, Faq } from './Pages/Home.jsx';
@@ -32,15 +32,18 @@ const Footer = () => { const c = useContent(); return <footer className="ftr"><d
   <div><h4>Contactos</h4><a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noreferrer">WhatsApp +{WHATSAPP}</a><Link to="/legal">Política de privacidade</Link><Link to="/legal">Termos e condições</Link></div>
   </div><p className="center muted small">© {new Date().getFullYear()} Loanda Afiliados · Todos os direitos reservados</p></footer>; };
 const Legal = () => { const c = useContent(); return <section className="wrap sec"><h2>Política de privacidade</h2><p style={{ whiteSpace: 'pre-line' }}>{c.privacidade}</p><h2>Termos e condições</h2><p style={{ whiteSpace: 'pre-line' }}>{c.termos}</p></section>; };
-const PanelBar = ({ admin }) => <header className="hdr"><div className="wrap bar"><span className="logo">LOANDA <b>AFILIADOS</b> · {admin ? 'ADMIN' : 'MINHA CONTA'}</span><Link to="/" className="small">Ver site</Link></div></header>;
+const UserBar = ({ adm }) => <header className="hdr"><div className="wrap bar"><Link to={adm ? '/admin' : '/conta'} className="logo">LOANDA <b>AFILIADOS</b></Link><Link to={adm ? '/admin' : '/conta'} className="small">← Meu painel</Link></div></header>;
+const PanelBar = ({ admin }) => <header className="hdr"><div className="wrap bar"><span className="logo">LOANDA <b>AFILIADOS</b> · {admin ? 'ADMIN' : 'MINHA CONTA'}</span><Link to="/produtos" className="small">Ver loja</Link></div></header>;
 export default function App() {
   useReveal();
   const { pathname } = useLocation();
   const c = useContent();
+  const s = useSession(); const [adm, setAdm] = useState(undefined);
+  useEffect(() => { if (s === undefined) return; if (!s) return setAdm(false); sb.from('admin_users').select('user_id').maybeSingle().then(({ data }) => setAdm(!!data)); }, [s]);
   const panel = pathname.startsWith('/admin') || pathname.startsWith('/conta');
-  return <>{!panel && c.aviso && <div className="aviso">{c.aviso}</div>}{panel ? <PanelBar admin={pathname.startsWith('/admin')} /> : <Header />}<main>
+  return <>{!panel && c.aviso && <div className="aviso">{c.aviso}</div>}{panel ? <PanelBar admin={pathname.startsWith('/admin')} /> : s ? <UserBar adm={adm} /> : <Header />}<main>
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={s === undefined || (s && adm === undefined) ? <Loading /> : s ? <Navigate to={adm ? '/admin' : '/conta'} replace /> : <Home />} />
       <Route path="/produtos" element={<section className="wrap sec"><Catalog /></section>} />
       <Route path="/produto/:slug" element={<Product />} />
       <Route path="/afiliados" element={<Programa />} />
@@ -50,5 +53,5 @@ export default function App() {
       <Route path="/admin" element={<Admin />} />
       <Route path="/legal" element={<Legal />} />
       <Route path="*" element={<p className="wrap sec">Página não encontrada.</p>} />
-    </Routes></main>{!panel && <Footer />}<Toaster /></>;
+    </Routes></main>{!panel && !s && <Footer />}<Toaster /></>;
 }
